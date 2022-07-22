@@ -3,6 +3,7 @@ import salt.ext.tornado.gen
 TRANSPORTS = (
     "zeromq",
     "tcp",
+    "ziti",
 )
 
 
@@ -42,7 +43,7 @@ def request_client(opts, io_loop):
         import salt.transport.zeromq
 
         return salt.transport.zeromq.RequestClient(opts, io_loop=io_loop)
-    elif ttype == "tcp":
+    elif (ttype == "tcp") | (ttype =="ziti"):
         import salt.transport.tcp
 
         return salt.transport.tcp.TCPReqClient(opts, io_loop=io_loop)
@@ -87,7 +88,7 @@ def publish_client(opts, io_loop):
         import salt.transport.zeromq
 
         return salt.transport.zeromq.PublishClient(opts, io_loop)
-    elif ttype == "tcp":
+    elif (ttype == "tcp") | (ttype =="ziti"):
         import salt.transport.tcp
 
         return salt.transport.tcp.TCPPubClient(opts, io_loop)
