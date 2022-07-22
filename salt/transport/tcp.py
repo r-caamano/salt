@@ -7,13 +7,11 @@ Wire protocol: "len(payload) msgpack({'head': SOMEHEADER, 'body': SOMEBODY})"
 """
 
 
-from distutils.command.config import config
 import errno
 import logging
 import os
 import queue
 import socket
-from ssl import SOCK_STREAM
 import threading
 import urllib
 
@@ -36,8 +34,6 @@ import salt.utils.msgpack
 import salt.utils.platform
 import salt.utils.versions
 from salt.exceptions import SaltClientError, SaltReqTimeoutError
-
-
 
 if salt.utils.platform.is_windows():
     USE_LOAD_BALANCER = True
@@ -521,19 +517,13 @@ class TCPClientKeepAlive(salt.ext.tornado.tcpclient.TCPClient):
         Due to this, use **kwargs to swallow these and any future
         kwargs to maintain compatibility.
         """
-
         # Always connect in plaintext; we'll convert to ssl if necessary
         # after one connection has completed.
-        if self.opts['transport'] == 'ziti':
-            import openziti
-            sock = openziti.socket(type = SOCK_STREAM)
-        else:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         _set_tcp_keepalive(sock, self.opts)
         stream = salt.ext.tornado.iostream.IOStream(
             sock, max_buffer_size=max_buffer_size
         )
-        print("after stream")
         if salt.ext.tornado.version_info < (5,):
             return stream.connect(addr)
         return stream, stream.connect(addr)
