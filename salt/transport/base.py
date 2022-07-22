@@ -43,10 +43,13 @@ def request_client(opts, io_loop):
         import salt.transport.zeromq
 
         return salt.transport.zeromq.RequestClient(opts, io_loop=io_loop)
-    elif (ttype == "tcp") | (ttype =="ziti"):
+    elif (ttype == "tcp"):
         import salt.transport.tcp
+    
+    elif (ttype =="ziti"):
+        import salt.transport.ziti
 
-        return salt.transport.tcp.TCPReqClient(opts, io_loop=io_loop)
+        return salt.transport.ziti.TCPReqClient(opts, io_loop=io_loop)
     else:
         raise Exception("Channels are only defined for tcp, zeromq")
 
@@ -88,10 +91,14 @@ def publish_client(opts, io_loop):
         import salt.transport.zeromq
 
         return salt.transport.zeromq.PublishClient(opts, io_loop)
-    elif (ttype == "tcp") | (ttype =="ziti"):
+    elif (ttype == "tcp"):
         import salt.transport.tcp
 
         return salt.transport.tcp.TCPPubClient(opts, io_loop)
+    elif (ttype =="ziti"):
+        import salt.transport.ziti
+
+        return salt.transport.ziti.TCPPubClient(opts, io_loop)
     raise Exception("Transport type not found: {}".format(ttype))
 
 
