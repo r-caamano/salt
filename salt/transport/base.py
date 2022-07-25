@@ -45,7 +45,8 @@ def request_client(opts, io_loop):
         return salt.transport.zeromq.RequestClient(opts, io_loop=io_loop)
     elif (ttype == "tcp"):
         import salt.transport.tcp
-    
+        
+        return salt.transport.tcp.TCPReqClient(opts, io_loop=io_loop) 
     elif (ttype =="ziti"):
         import salt.transport.ziti
 
