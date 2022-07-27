@@ -129,9 +129,13 @@ def resolve_dns(opts, fallback=True):
         try:
             if opts["master"] == "":
                 raise SaltSystemExit
-            ret["master_ip"] = salt.utils.network.dns_check(
-                opts["master"], int(opts["master_port"]), True, opts["ipv6"]
-            )
+            elif ('transport' in opts) & (opts['transport'] == 'ziti'):
+                print("RUNNING ZITI")
+                ret["master_ip"] = opts["master"] 
+            else:
+                ret["master_ip"] = salt.utils.network.dns_check(
+                    opts["master"], int(opts["master_port"]), True, opts["ipv6"]
+                )
         except SaltClientError:
             retry_dns_count = opts.get("retry_dns_count", None)
             if opts["retry_dns"]:
@@ -250,6 +254,8 @@ def prep_ip_port(opts):
     # Use given master IP if "ip_only" is set or if master_ip is an ipv6 address without
     # a port specified. The is_ipv6 check returns False if brackets are used in the IP
     # definition such as master: '[::1]:1234'.
+    '''if ('transport' in opts) & (opts['transport'] == 'ziti'):
+        return {"master": opts['master']}'''
     if opts["master_uri_format"] == "ip_only":
         ret["master"] = ipaddress.ip_address(opts["master"])
     else:

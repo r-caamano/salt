@@ -37,6 +37,10 @@ import salt.utils.msgpack
 import salt.utils.platform
 import salt.utils.versions
 from salt.exceptions import SaltClientError, SaltReqTimeoutError
+from salt.ext.tornado.netutil import ExecutorResolver
+from salt.ext.tornado.netutil import Resolver
+from salt.ext.tornado.concurrent import dummy_executor, run_on_executor
+from salt.ext.tornado.ioloop import IOLoop
 
 
 
@@ -185,22 +189,6 @@ if USE_LOAD_BALANCER:
                     raise
 
 
-class Resolver:
-
-    _resolver_configured = False
-
-    @classmethod
-    def _config_resolver(cls, num_threads=10):
-        salt.ext.tornado.netutil.Resolver.configure(
-            "salt.ext.tornado.netutil.ThreadedResolver", num_threads=num_threads
-        )
-        cls._resolver_configured = True
-
-    def __init__(self, *args, **kwargs):
-        if not self._resolver_configured:
-            # TODO: add opt to specify number of resolver threads
-            self._config_resolver()
-
 
 class TCPPubClient(salt.transport.base.PublishClient):
     """
@@ -215,8 +203,7 @@ class TCPPubClient(salt.transport.base.PublishClient):
         self.message_client = None
         self.connected = False
         self._closing = False
-        self.resolver = Resolver()
-
+        self.resolver = ZitiExecutorResolver(opts)
     def close(self):
         if self._closing:
             return
@@ -239,6 +226,7 @@ class TCPPubClient(salt.transport.base.PublishClient):
             self.opts["master_ip"],
             int(self.publish_port),
             io_loop=self.io_loop,
+            resolver=self.resolver,
             connect_callback=connect_callback,
             disconnect_callback=disconnect_callback,
             source_ip=self.opts.get("source_ip"),
@@ -501,6 +489,30 @@ if USE_LOAD_BALANCER:
                     )
             except (KeyboardInterrupt, SystemExit):
                 pass
+
+
+class ZitiExecutorResolver(ExecutorResolver):
+    def initialize(self,opts,executor=None, io_loop=None,close_executor=True):
+        self.io_loop = io_loop or IOLoop.current()
+        if executor is not None:
+            self.executor = executor
+            self.close_executor = close_executor
+        else:
+            self.executor = dummy_executor
+            self.close_executor = False
+
+    @run_on_executor
+    def resolve(self, host, port, family=socket.AF_UNSPEC):
+        # On Solaris, getaddrinfo fails if the given port is not found
+        # in /etc/services and no socket type is given, so we must pass
+        # one here.  The socket type used here doesn't seem to actually
+        # matter (we discard the one we get back in the results),
+        # so the addresses we return should still be usable with SOCK_DGRAM.
+        results = [(socket.AF_INET, (host, port))]
+        '''results = []
+        for family, address in addrinfo:
+            results.append((family, address))'''
+        return results
 
 
 class TCPClientKeepAlive(salt.ext.tornado.tcpclient.TCPClient):
@@ -1056,14 +1068,13 @@ class TCPReqClient(salt.transport.base.RequestClient):
         parse = urllib.parse.urlparse(self.opts["master_uri"])
         master_host, master_port = parse.netloc.rsplit(":", 1)
         master_addr = (master_host, int(master_port))
-        # self.resolver = Resolver()
-        resolver = kwargs.get("resolver")
+        self.resolver = ZitiExecutorResolver(opts)
         self.message_client = salt.transport.ziti.MessageClient(
             opts,
             master_host,
             int(master_port),
             io_loop=io_loop,
-            resolver=resolver,
+            resolver=self.resolver,
             source_ip=opts.get("source_ip"),
             source_port=opts.get("source_ret_port"),
         )
